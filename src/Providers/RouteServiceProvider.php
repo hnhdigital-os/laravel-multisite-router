@@ -4,9 +4,10 @@ namespace MultiSiteRouter\Providers;
 
 use App;
 use Config;
-use View;
 use Illuminate\Routing\Router;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
+use Resource;
+use View;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -27,7 +28,38 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot(Router $router)
     {
-        //
+        global $app;
+
+        if (!App::runningInConsole()) {
+            $server_name = $app->request->server('HTTP_HOST');
+
+            if ($server_name !== 'localhost') {
+                $full_server_name = $server_name;
+
+                // Different URL makeup for local vs public system
+                if (env('APP_ENV') === 'local') {
+                    $server_port = ':'.$app->request->server('SERVER_PORT');
+                    $server_name = str_replace('.'.env('APP_DEV_NAME'), '', $server_name);
+                } else {
+                    $server_name = str_replace('-'.env('APP_DEV_NAME'), '', $server_name);
+                }
+
+                // Remove underscore and redirect to dashed version
+                if (stripos($server_name, '_') !== false) {
+                    header("HTTP/1.1 301 Moved Permanently"); 
+                    header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.str_replace('_', '-', $app->request->server('HTTP_HOST')));
+                    exit();
+                }
+
+                $app['config']->set('multisite.name', $server_name);
+                $app['config']->set('session.domain', $full_server_name);
+                $app['config']->set('session.cookie', $app['config']->get('multisite.default_session_name'));
+
+                if (function_exists('hookMultiSiteGetConfig')) {
+                    hookMultiSiteGetConfig();
+                }
+            }
+        }
 
         parent::boot($router);
     }
@@ -40,28 +72,36 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function map(Router $router)
     {
+        global $app;
+
         if (App::runningInConsole() && isset($_ENV['console_config'])) {
-            Config::set('server.application', $_ENV['console_config']['application']);
-            Config::set('server.organisation_id', $_ENV['console_config']['organisation_id']);
-        }
-        $router->group(['namespace' => $this->namespace], function ($router) {
-            if (!Config::get('server.organisation_id')) {
-                Config::set('server.organisation_id', 0);
-            } 
-            if (Config::get('server.application') == 'manage' && !Config::get('server.organisation_id')) {
-                Config::set('server.application', 'system');
+            $app['config']->set('multisite.current_site', $_ENV['console_config']['current_site']);
+            foreach ($app['config']->get('multisite.variables', []) as $variable_name => $default_value) {
+                $app['config']->set('multisite.'.$variable_name, $_ENV['console_config'][$variable_name]);
             }
-            switch (Config::get('server.application')) {
-                case 'api':
-                case 'cms':
-                case 'external':
-                case 'form':
-                case 'manage':
-                case 'system':
-                    self::loadRoute(ucfirst(Config::get('server.application')));
-                    break;
-                default:
-                    self::loadRoute('Cms');
+        }
+
+        if (function_exists('hookBeforeMultiSiteRouteProcessing')) {
+            hookBeforeMultiSiteRouteProcessing();
+        }
+
+        $router->group(['namespace' => $app['config']->get('multisite.controller_namespace')], function ($router) {
+            global $app;
+            foreach ($app['config']->get('multisite.variables', []) as $variable_name => $default_value) {
+                if (!$app['config']->get('multisite.'.$variable_name)) {
+                    $app['config']->set('multisite.'.$variable_name, $default_value);
+                }
+            }
+
+            if (function_exists('hookBeforeMultiSiteLoadRoute')) {
+                hookBeforeMultiSiteLoadRoute();
+            }
+
+            $sites_list = $app['config']->get('multisite.sites');            
+            if (isset($sites_list[$app['config']->get('multisite.current_site')])) {
+                self::loadRoute(ucfirst($app['config']->get('multisite.current_site')));
+            } else {
+                self::loadRoute($app['config']->get('multisite.controller_namespace'));
             }
         });
     }
@@ -74,13 +114,15 @@ class RouteServiceProvider extends ServiceProvider
      */
     public static function loadRoute($name, $path = '')
     {
-        if (!empty($path) && stripos($path, 'Http\\Routes') !== false) {
+        global $app;
+
+        if (!empty($path) && stripos($path, $app['config']->get('multisite.router_namespace')) !== false) {
             $file = base_path($path.'\\'.$name.'Routes.php');
         } else {
             if (!empty($path)) {
                 $path .= '\\';
             }
-            $file = app_path('Http\\Routes\\'.$path.$name.'Routes.php');
+            $file = app_path($app['config']->get('multisite.router_namespace').'\\'.$path.$name.'Routes.php');
         }
         $file = str_replace('\\', '/', $file);
         if (file_exists($file)) {

@@ -52,17 +52,11 @@ class RouteCacheCommand extends Command
     {
         $this->call('route:clear');
 
-        $settings = [];
-        $settings[] = ['application' => 'system', 'organisation_id' => 0];
-        $settings[] = ['application' => 'external', 'organisation_id' => 0];
-        $settings[] = ['application' => 'api', 'organisation_id' => 1];
-        $settings[] = ['application' => 'cms', 'organisation_id' => 1];
-        $settings[] = ['application' => 'form', 'organisation_id' => 1];
-        $settings[] = ['application' => 'manage', 'organisation_id' => 1];
-
+        $sites_list = Config::get('multisite.sites');
         $route_cache = '';
 
-        foreach ($settings as $config) {
+        foreach ($sites_list as $site_name => $config) {
+            $config['current_site'] = $site_name;
             $routes = $this->getFreshApplicationRoutes($config);
 
             if (count($routes) > 0) {
@@ -102,13 +96,11 @@ class RouteCacheCommand extends Command
     protected function buildRouteCacheFile(RouteCollection $routes)
     {
         $stub = $this->files->get(__DIR__.'/stubs/routes.stub');
-        $stub = str_replace('{{application}}', Config::get('server.application'), $stub);
-        if (Config::get('server.organisation_id') > 0) {
-            $stub = str_replace('{{organisation_id}}', '> 0', $stub);
-        } else {
-            $stub = str_replace('{{organisation_id}}', '== 0', $stub);
+        $route_cache_requirements = "Config::get('multisite.current_site') == '".Config::get('multisite.current_site')."'";
+        foreach (Config::get('multisite.route_cache_requirements.'.Config::get('multisite.current_site')) as $requirement) {
+            $route_cache_requirements .= " && ".$requirement;
         }
-
+        $stub = str_replace('{{route_cache_requirements}}', $route_cache_requirements, $stub);
         return str_replace('{{routes}}', base64_encode(serialize($routes)), $stub);
     }
 }

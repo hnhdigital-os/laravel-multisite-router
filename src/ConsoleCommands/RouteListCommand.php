@@ -226,7 +226,7 @@ class RouteListCommand extends Command
     protected function getOptions()
     {
         return [
-            ['application', null, InputOption::VALUE_OPTIONAL, 'Filter by the application.'],
+            ['current_site', null, InputOption::VALUE_OPTIONAL, 'Filter by the current site.'],
 
             ['organisation', null, InputOption::VALUE_OPTIONAL, 'Filter by the organisation.'],
 
