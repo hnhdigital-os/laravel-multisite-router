@@ -96,11 +96,11 @@ class RouteCacheCommand extends Command
     protected function buildRouteCacheFile(RouteCollection $routes)
     {
         $stub = $this->files->get(__DIR__.'/stubs/routes.stub');
-        $route_cache_requirements = "Config::get('multisite.current_site') == '".Config::get('multisite.current_site')."'";
-        foreach (Config::get('multisite.route_cache_requirements.'.Config::get('multisite.current_site')) as $requirement) {
-            $route_cache_requirements .= " && ".$requirement;
+        $site_cache_requirements = "Config::get('multisite.current_site') == '".Config::get('multisite.current_site')."'";
+        foreach (Config::get('multisite.site_cache_requirements.'.Config::get('multisite.current_site')) as $requirement) {
+            $site_cache_requirements .= " && ".$requirement;
         }
-        $stub = str_replace('{{route_cache_requirements}}', $route_cache_requirements, $stub);
+        $stub = str_replace('{{site_cache_requirements}}', $site_cache_requirements, $stub);
         return str_replace('{{routes}}', base64_encode(serialize($routes)), $stub);
     }
 }

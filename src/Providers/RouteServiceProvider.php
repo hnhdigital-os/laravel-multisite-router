@@ -11,14 +11,6 @@ use View;
 
 class RouteServiceProvider extends ServiceProvider
 {
-    /**
-     * This namespace is applied to the controller routes in your routes file.
-     *
-     * In addition, it is set as the URL generator's root namespace.
-     *
-     * @var string
-     */
-    protected $namespace = 'App\Http\Controllers';
 
     /**
      * Define your route model bindings, pattern filters, etc.
@@ -29,6 +21,7 @@ class RouteServiceProvider extends ServiceProvider
     public function boot(Router $router)
     {
         global $app;
+        parent::boot($router);
 
         if (!App::runningInConsole()) {
             $server_name = $app->request->server('HTTP_HOST');
@@ -61,7 +54,9 @@ class RouteServiceProvider extends ServiceProvider
             }
         }
 
-        parent::boot($router);
+        if (class_exists('App\Http\Routes\RouteModelBindings')) {
+            App\Http\Routes\RouteModelBindings::boot($router);
+        }
     }
 
     /**
@@ -76,7 +71,7 @@ class RouteServiceProvider extends ServiceProvider
 
         if (App::runningInConsole() && isset($_ENV['console_config'])) {
             $app['config']->set('multisite.current_site', $_ENV['console_config']['current_site']);
-            foreach ($app['config']->get('multisite.variables', []) as $variable_name => $default_value) {
+            foreach ($app['config']->get('multisite.site_variable_defaults', []) as $variable_name => $default_value) {
                 $app['config']->set('multisite.'.$variable_name, $_ENV['console_config'][$variable_name]);
             }
         }
@@ -87,7 +82,7 @@ class RouteServiceProvider extends ServiceProvider
 
         $router->group(['namespace' => $app['config']->get('multisite.controller_namespace')], function ($router) {
             global $app;
-            foreach ($app['config']->get('multisite.variables', []) as $variable_name => $default_value) {
+            foreach ($app['config']->get('multisite.site_variable_defaults', []) as $variable_name => $default_value) {
                 if (!$app['config']->get('multisite.'.$variable_name)) {
                     $app['config']->set('multisite.'.$variable_name, $default_value);
                 }
