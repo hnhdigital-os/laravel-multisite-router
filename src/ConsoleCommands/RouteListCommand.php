@@ -2,6 +2,7 @@
 
 namespace MultiSiteRouter\ConsoleCommands;
 
+use Config;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Routing\Route;
@@ -45,7 +46,14 @@ class RouteListCommand extends Command
      *
      * @var array
      */
-    protected $headers = ['Domain', 'Method', 'URI', 'Name', 'Action', 'Middleware'];
+    protected $headers = ['Site', 'Domain', 'Method', 'URI', 'Name', 'Action', 'Middleware'];
+
+    /**
+     * The table columns for the command.
+     *
+     * @var array
+     */
+    protected $columns = ['site', 'host', 'method', 'uri', 'name', 'action', 'middleware'];
 
     /**
      * Create a new route command instance.
@@ -56,9 +64,7 @@ class RouteListCommand extends Command
     public function __construct(Router $router)
     {
         parent::__construct();
-
         $this->router = $router;
-        $this->routes = $router->getRoutes();
     }
 
     /**
@@ -68,10 +74,6 @@ class RouteListCommand extends Command
      */
     public function fire()
     {
-        if (count($this->routes) == 0) {
-            return $this->error("Your application doesn't have any routes.");
-        }
-
         $this->displayRoutes($this->getRoutes());
     }
 
@@ -82,13 +84,34 @@ class RouteListCommand extends Command
      */
     protected function getRoutes()
     {
+        $columns = $this->getHeaders(true);
+
         $results = [];
 
-        foreach ($this->routes as $route) {
-            $results[] = $this->getRouteInformation($route);
+        if ($this->option('site')) {
+            $sites_list = [$this->option('site') => Config::get('multisite.sites.'.$this->option('site'))];
+        } else {
+            $sites_list = Config::get('multisite.sites');
+        }
+
+        foreach ($sites_list as $site_name => $config) {
+            $config['current_site'] = $site_name;
+            $routes = $this->getFreshApplicationRoutes($config);
+
+            foreach ($routes as $route) {
+                $current_route_data = $this->getRouteInformation($route);
+                $route_data = [];
+                foreach ($columns as $column_name) {
+                    $route_data[$column_name] = $current_route_data[$column_name];
+                }
+                $results[] = $route_data;
+            }
         }
 
         if ($sort = $this->option('sort')) {
+            if (!in_array($sort, $columns)) {
+                $sort = $columns[0];
+            }
             $results = Arr::sort($results, function ($value) use ($sort) {
                 return $value[$sort];
             });
@@ -102,6 +125,49 @@ class RouteListCommand extends Command
     }
 
     /**
+     * Boot a fresh copy of the application and get the routes.
+     *
+     * @return \Illuminate\Routing\RouteCollection
+     */
+    protected function getFreshApplicationRoutes($config)
+    {
+        $_ENV['console_config'] = $config;
+        $app = require $this->laravel->basePath().'/bootstrap/app.php';
+        $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
+        return $app['router']->getRoutes();
+    }
+
+    /**
+     * Get the headers.
+     *
+     * @return array
+     */
+    protected function getHeaders($column_names = false)
+    {
+        if ($this->option('column')) {
+            $headers = [];
+            $columns = explode(',', $this->option('column'));
+
+            foreach ($this->headers as $key => $value) {
+                if (in_array($value, $columns)) {
+                    if ($column_names) {
+                        $headers[] = $this->columns[$key];
+                    } else {
+                        $headers[] = $value;
+                    }
+                }
+            }
+            if (count($headers)) {
+                return $headers;
+            }
+        }
+        if ($column_names) {
+            return $this->columns;
+        }
+        return $this->headers;
+    }
+
+    /**
      * Get the route information for a given route.
      *
      * @param  \Illuminate\Routing\Route  $route
@@ -110,6 +176,7 @@ class RouteListCommand extends Command
     protected function getRouteInformation(Route $route)
     {
         return $this->filterRoute([
+            'site'   => $_ENV['console_config']['current_site'],
             'host'   => $route->domain(),
             'method' => implode('|', $route->methods()),
             'uri'    => $route->uri(),
@@ -127,7 +194,32 @@ class RouteListCommand extends Command
      */
     protected function displayRoutes(array $routes)
     {
-        $this->table($this->headers, $routes);
+        if ($this->option('no-table')) {
+            $output = [];
+            foreach ($routes as $route_data) {
+                $show_row = false;
+                if ($this->option('no-empty')) {
+                    foreach ($route_data as $key => $value) {
+                        if (!empty($value)) {
+                            $show_row = true;
+                            break;
+                        }
+                    }
+                } else {
+                    $show_row = true;
+                }
+
+                // $this->line isn't outputting??
+                if ($show_row) {
+                    $output[] = implode("\t", array_values($route_data));
+                }
+            }
+            if (count($output)) {
+                $this->line($output);
+            }
+        } else {
+            $this->table($this->getHeaders(), $routes);
+        }
     }
 
     /**
@@ -226,7 +318,13 @@ class RouteListCommand extends Command
     protected function getOptions()
     {
         return [
-            ['current_site', null, InputOption::VALUE_OPTIONAL, 'Filter by the current site.'],
+            ['site', null, InputOption::VALUE_OPTIONAL, 'Filter by the current site.'],
+
+            ['column', null, InputOption::VALUE_OPTIONAL, 'Return only these columns.'],
+
+            ['no-table', null, InputOption::VALUE_NONE, 'Return only text.'],
+
+            ['no-empty', null, InputOption::VALUE_NONE, 'Return only non-empty values.'],
 
             ['organisation', null, InputOption::VALUE_OPTIONAL, 'Filter by the organisation.'],
 
