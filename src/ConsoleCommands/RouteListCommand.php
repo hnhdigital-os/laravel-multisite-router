@@ -209,9 +209,8 @@ class RouteListCommand extends Command
                     $show_row = true;
                 }
 
-                // $this->line isn't outputting??
                 if ($show_row) {
-                    $output[] = implode("\t", array_values($route_data));
+                    $output[] = implode("|", array_values($route_data));
                 }
             }
             if (count($output)) {
