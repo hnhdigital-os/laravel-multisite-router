@@ -54,8 +54,9 @@ class RouteServiceProvider extends ServiceProvider
             }
         }
 
-        if (class_exists('App\Http\Routes\RouteModelBindings')) {
-            App\Http\Routes\RouteModelBindings::boot($router);
+        if (file_exists($bindings_file = base_path('routes/ModelBindings.php'))) {
+            require_once($bindings_file);
+            \Routes\ModelBindings::boot($router);
         }
     }
 
@@ -112,12 +113,12 @@ class RouteServiceProvider extends ServiceProvider
         global $app;
 
         if (!empty($path) && stripos($path, $app['config']->get('multisite.router_namespace')) !== false) {
-            $file = base_path($path.'\\'.$name.'Routes.php');
+            $file = base_path('routes/'.$path.'\\'.$name.'Routes.php');
         } else {
             if (!empty($path)) {
                 $path .= '\\';
             }
-            $file = app_path($app['config']->get('multisite.router_namespace').'\\'.$path.$name.'Routes.php');
+            $file = base_path('routes/'.$app['config']->get('multisite.router_namespace').'\\'.$path.$name.'Routes.php');
         }
         $file = str_replace('\\', '/', $file);
         if (file_exists($file)) {
