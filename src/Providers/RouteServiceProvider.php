@@ -4,7 +4,7 @@ namespace MultiSiteRouter\Providers;
 
 use App;
 use Config;
-use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Resource;
 use View;
@@ -15,13 +15,11 @@ class RouteServiceProvider extends ServiceProvider
     /**
      * Define your route model bindings, pattern filters, etc.
      *
-     * @param  \Illuminate\Routing\Router  $router
      * @return void
      */
-    public function boot(Router $router)
+    public function boot()
     {
         global $app;
-        parent::boot($router);
 
         if (!App::runningInConsole()) {
             $server_name = $app->request->server('HTTP_HOST');
@@ -54,19 +52,20 @@ class RouteServiceProvider extends ServiceProvider
             }
         }
 
-        if (file_exists($bindings_file = base_path('routes/ModelBindings.php'))) {
+        parent::boot();
+
+        if (file_exists($bindings_file = base_path('routes/bindings.php'))) {
             require_once($bindings_file);
-            \Routes\ModelBindings::boot($router);
         }
+
     }
 
     /**
      * Define the routes for the application.
      *
-     * @param  \Illuminate\Routing\Router  $router
      * @return void
      */
-    public function map(Router $router)
+    public function map()
     {
         global $app;
 
@@ -81,7 +80,7 @@ class RouteServiceProvider extends ServiceProvider
             hookBeforeMultiSiteRouteProcessing();
         }
 
-        $router->group(['namespace' => $app['config']->get('multisite.controller_namespace')], function ($router) {
+        Route::group(['namespace' => $app['config']->get('multisite.controller_namespace')], function () {
             global $app;
             foreach ($app['config']->get('multisite.site_variable_defaults', []) as $variable_name => $default_value) {
                 if (!$app['config']->get('multisite.'.$variable_name)) {
@@ -95,7 +94,7 @@ class RouteServiceProvider extends ServiceProvider
 
             $sites_list = $app['config']->get('multisite.sites');            
             if (isset($sites_list[$app['config']->get('multisite.current_site')])) {
-                self::loadRoute(ucfirst($app['config']->get('multisite.current_site')));
+                self::loadRoute($app['config']->get('multisite.current_site'));
             } else {
                 self::loadRoute($app['config']->get('multisite.controller_namespace'));
             }
@@ -111,14 +110,16 @@ class RouteServiceProvider extends ServiceProvider
     public static function loadRoute($name, $path = '')
     {
         global $app;
+        $name = strtolower($name);
+        $path = strtolower($path);
 
         if (!empty($path) && stripos($path, $app['config']->get('multisite.router_namespace')) !== false) {
-            $file = base_path('routes/'.$path.'\\'.$name.'Routes.php');
+            $file = base_path('routes/'.$path.'\\'.$name.'.php');
         } else {
             if (!empty($path)) {
                 $path .= '\\';
             }
-            $file = base_path('routes/'.$app['config']->get('multisite.router_namespace').'\\'.$path.$name.'Routes.php');
+            $file = base_path('routes/'.$app['config']->get('multisite.router_namespace').'\\'.$path.$name.'.php');
         }
         $file = str_replace('\\', '/', $file);
         if (file_exists($file)) {
