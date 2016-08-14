@@ -33,7 +33,8 @@ class RouteCacheCommand extends Command
     /**
      * Create a new route command instance.
      *
-     * @param  \Illuminate\Filesystem\Filesystem  $files
+     * @param \Illuminate\Filesystem\Filesystem $files
+     *
      * @return void
      */
     public function __construct(Filesystem $files)
@@ -84,13 +85,15 @@ class RouteCacheCommand extends Command
         $_ENV['console_config'] = $config;
         $app = require $this->laravel->basePath().'/bootstrap/app.php';
         $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
+
         return $app['router']->getRoutes();
     }
 
     /**
      * Build the route cache file.
      *
-     * @param  \Illuminate\Routing\RouteCollection  $routes
+     * @param \Illuminate\Routing\RouteCollection $routes
+     *
      * @return string
      */
     protected function buildRouteCacheFile(RouteCollection $routes)
@@ -98,9 +101,10 @@ class RouteCacheCommand extends Command
         $stub = $this->files->get(__DIR__.'/stubs/routes.stub');
         $site_cache_requirements = "Config::get('multisite.current_site') == '".Config::get('multisite.current_site')."'";
         foreach (Config::get('multisite.site_cache_requirements.'.Config::get('multisite.current_site')) as $requirement) {
-            $site_cache_requirements .= " && ".$requirement;
+            $site_cache_requirements .= ' && '.$requirement;
         }
         $stub = str_replace('{{site_cache_requirements}}', $site_cache_requirements, $stub);
+
         return str_replace('{{routes}}', base64_encode(serialize($routes)), $stub);
     }
 }

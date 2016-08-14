@@ -1,9 +1,10 @@
 <?php
+
 namespace MultiSiteRouter\Traits;
 
 use MultiSiteRouter\Scopes\CurrentOrganisationScope;
 
-trait CurrentOrganisationTrait 
+trait CurrentOrganisationTrait
 {
     /**
      * Boot the current organisation trait for a model.
@@ -12,6 +13,6 @@ trait CurrentOrganisationTrait
      */
     public static function bootCurrentOrganisationTrait()
     {
-        static::addGlobalScope(new CurrentOrganisationScope);
+        static::addGlobalScope(new CurrentOrganisationScope());
     }
 }
