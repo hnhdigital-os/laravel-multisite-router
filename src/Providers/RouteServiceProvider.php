@@ -4,14 +4,11 @@ namespace MultiSiteRouter\Providers;
 
 use App;
 use Config;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
-use Resource;
-use View;
+use Illuminate\Support\Facades\Route;
 
 class RouteServiceProvider extends ServiceProvider
 {
-
     /**
      * Define your route model bindings, pattern filters, etc.
      *
@@ -37,7 +34,7 @@ class RouteServiceProvider extends ServiceProvider
 
                 // Remove underscore and redirect to dashed version
                 if (stripos($server_name, '_') !== false) {
-                    header("HTTP/1.1 301 Moved Permanently"); 
+                    header('HTTP/1.1 301 Moved Permanently');
                     header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.str_replace('_', '-', $app->request->server('HTTP_HOST')));
                     exit();
                 }
@@ -55,9 +52,8 @@ class RouteServiceProvider extends ServiceProvider
         parent::boot();
 
         if (file_exists($bindings_file = base_path('routes/bindings.php'))) {
-            require_once($bindings_file);
+            require_once $bindings_file;
         }
-
     }
 
     /**
@@ -92,7 +88,7 @@ class RouteServiceProvider extends ServiceProvider
                 hookBeforeMultiSiteLoadRoute();
             }
 
-            $sites_list = $app['config']->get('multisite.sites');            
+            $sites_list = $app['config']->get('multisite.sites');
             if (isset($sites_list[$app['config']->get('multisite.current_site')])) {
                 self::loadRoute($app['config']->get('multisite.current_site'));
             } else {
@@ -102,10 +98,12 @@ class RouteServiceProvider extends ServiceProvider
     }
 
     /**
-     * Load route file
-     * @param  string $name
-     * @param  string $path
-     * @return boolean
+     * Load route file.
+     *
+     * @param string $name
+     * @param string $path
+     *
+     * @return bool
      */
     public static function loadRoute($name, $path = '')
     {
@@ -124,8 +122,10 @@ class RouteServiceProvider extends ServiceProvider
         $file = str_replace('\\', '/', $file);
         if (file_exists($file)) {
             require $file;
+
             return true;
         }
+
         return false;
     }
 }
