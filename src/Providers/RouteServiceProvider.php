@@ -27,15 +27,14 @@ class RouteServiceProvider extends ServiceProvider
                 // Different URL makeup for local vs public system
                 if (env('APP_ENV') === 'local') {
                     $server_port = ':'.$app->request->server('SERVER_PORT');
-                    $server_name = str_replace('.'.env('APP_DEV_NAME'), '', $server_name);
-                } else {
-                    $server_name = str_replace('-'.env('APP_DEV_NAME'), '', $server_name);
                 }
 
+                $server_name = str_replace(['-'.env('APP_DEV_NAME'), '.'.env('APP_DEV_NAME')], '', $server_name);
+
                 // Remove underscore and redirect to dashed version
-                if (stripos($server_name, '_') !== false) {
+                if (stripos($server_name, '_') !== false || stripos($server_name, 'www.') !== false) {
                     header('HTTP/1.1 301 Moved Permanently');
-                    header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.str_replace('_', '-', $app->request->server('HTTP_HOST')));
+                    header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.str_replace(['_', 'www.'], ['-', ''], $app->request->server('HTTP_HOST')));
                     exit();
                 }
 
