@@ -131,8 +131,11 @@ class RouteListCommand extends Command
      */
     protected function getFreshApplicationRoutes($config)
     {
+        $config['name'] = $config[0];
+        unset($config[0]);
         $_ENV['console_config'] = $config;
         $app = require $this->laravel->basePath().'/bootstrap/app.php';
+        $_ENV['console_config']['app'] = $app;
         $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
         return $app['router']->getRoutes();
@@ -152,7 +155,7 @@ class RouteListCommand extends Command
             foreach ($this->headers as $key => $value) {
                 if (in_array($value, $columns)) {
                     if ($column_names) {
-                        $headers[] = $this->columns[$key];
+                        $headers[] = $this->headers[strtolower($key)];
                     } else {
                         $headers[] = $value;
                     }
@@ -228,61 +231,14 @@ class RouteListCommand extends Command
     /**
      * Get before filters.
      *
-     * @param \Illuminate\Routing\Route $route
-     *
+     * @param  \Illuminate\Routing\Route  $route
      * @return string
      */
     protected function getMiddleware($route)
     {
-        $middlewares = array_values($route->middleware());
-
-        $actionName = $route->getActionName();
-
-        if (!empty($actionName) && $actionName !== 'Closure') {
-            $middlewares = array_merge($middlewares, $this->getControllerMiddleware($actionName));
-        }
-
-        return implode(',', $middlewares);
-    }
-
-    /**
-     * Get the middleware for the given Controller@action name.
-     *
-     * @param string $actionName
-     *
-     * @return array
-     */
-    protected function getControllerMiddleware($actionName)
-    {
-        $segments = explode('@', $actionName);
-
-        return $this->getControllerMiddlewareFromInstance(
-            $this->laravel->make($segments[0]),
-            isset($segments[1]) ? $segments[1] : null
-        );
-    }
-
-    /**
-     * Get the middlewares for the given controller instance and method.
-     *
-     * @param \Illuminate\Routing\Controller $controller
-     * @param string                         $method
-     *
-     * @return array
-     */
-    protected function getControllerMiddlewareFromInstance($controller, $method)
-    {
-        $middleware = $this->router->getMiddleware();
-
-        $results = [];
-
-        foreach ($controller->getMiddleware() as $name => $options) {
-            if (!$this->methodExcludedByOptions($method, $options)) {
-                $results[] = Arr::get($middleware, $name, $name);
-            }
-        }
-
-        return $results;
+        return collect($route->gatherMiddleware())->map(function ($middleware) {
+            return $middleware instanceof Closure ? 'Closure' : $middleware;
+        })->implode(',');
     }
 
     /**
