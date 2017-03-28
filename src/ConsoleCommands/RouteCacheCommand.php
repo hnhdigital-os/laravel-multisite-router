@@ -56,8 +56,11 @@ class RouteCacheCommand extends Command
         $sites_list = Config::get('multisite.sites');
         $route_cache = '';
 
-        foreach ($sites_list as $site_name => $config) {
-            $config['current_site'] = $site_name;
+        foreach ($sites_list as $site_name => $sites) {
+            $config = [
+                'name'         => array_get($sites, 0, env('APP_DEV_NAME')),
+                'current_site' => $site_name,
+            ];
             $routes = $this->getFreshApplicationRoutes($config);
 
             if (count($routes) > 0) {
@@ -84,6 +87,7 @@ class RouteCacheCommand extends Command
     {
         $_ENV['console_config'] = $config;
         $app = require $this->laravel->basePath().'/bootstrap/app.php';
+        $_ENV['console_config']['app'] = &$app;
         $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
         return $app['router']->getRoutes();
@@ -100,7 +104,7 @@ class RouteCacheCommand extends Command
     {
         $stub = $this->files->get(__DIR__.'/stubs/routes.stub');
         $site_cache_requirements = "Config::get('multisite.current_site') == '".Config::get('multisite.current_site')."'";
-        foreach (Config::get('multisite.site_cache_requirements.'.Config::get('multisite.current_site')) as $requirement) {
+        foreach (Config::get('multisite.site_cache_requirements.'.Config::get('multisite.current_site'), []) as $requirement) {
             $site_cache_requirements .= ' && '.$requirement;
         }
         $stub = str_replace('{{site_cache_requirements}}', $site_cache_requirements, $stub);

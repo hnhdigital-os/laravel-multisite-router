@@ -75,6 +75,7 @@ class RouteServiceProvider extends ServiceProvider
         global $app;
 
         if (App::runningInConsole() && isset($_ENV['console_config'])) {
+
             $app = $_ENV['console_config']['app'];
             $app['config']->set('multisite.name', $_ENV['console_config']['name']);
             $app['config']->set('multisite.current_site', $_ENV['console_config']['current_site']);
@@ -103,7 +104,8 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function mapRoute($app)
     {
-        $available_middleware = $app->router->getMiddleware();
+        $available_middleware = (new \App\Http\Kernel($app, $app->router))->routeMiddleware;
+
         $site = config::get('multisite.current_site');
         $middleware = [config::get('multisite.middleware.'.$site, 'web')];
 
