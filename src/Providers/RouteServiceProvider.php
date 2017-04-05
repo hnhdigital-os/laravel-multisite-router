@@ -105,6 +105,9 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function mapRoute($app)
     {
+        global $app;
+        $available_middleware = $app->router->getMiddleware();
+
         $site = config::get('multisite.current_site');
         $middleware = [config::get('multisite.middleware.'.$site, 'web')];
 
@@ -112,10 +115,8 @@ class RouteServiceProvider extends ServiceProvider
 
         foreach ($middleware_types as $middleware_type) {
             $middleware_name = $middleware_type.'-'.$site;
-            try {
-                new ReflectionClass($middleware_name);
+            if (array_has($available_middleware, $middleware_name)) {
                 $middleware[] = $middleware_name;
-            } catch (\Exception $exception) {
             }
         }
 
