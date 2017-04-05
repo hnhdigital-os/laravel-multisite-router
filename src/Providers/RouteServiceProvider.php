@@ -104,17 +104,13 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function mapRoute($app)
     {
-        $available_middleware = (new \App\Http\Kernel($app, $app->router))->routeMiddleware;
-
         $site = config::get('multisite.current_site');
         $middleware = [config::get('multisite.middleware.'.$site, 'web')];
 
         $middleware_types = ['menu', 'check'];
 
         foreach ($middleware_types as $middleware_type) {
-            if (array_has($available_middleware, $middleware_type.'-'.$site, false)) {
-                $middleware[] = $middleware_type.'-'.$site;
-            }
+            $middleware[] = $middleware_type.'-'.$site;
         }
 
         Route::group([
