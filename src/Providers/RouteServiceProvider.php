@@ -8,6 +8,7 @@ use MultiSiteRouter\ConsoleCommands\RouteCacheCommand;
 use MultiSiteRouter\ConsoleCommands\RouteListCommand;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Route;
+use ReflectionClass;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -110,7 +111,12 @@ class RouteServiceProvider extends ServiceProvider
         $middleware_types = ['menu', 'check'];
 
         foreach ($middleware_types as $middleware_type) {
-            $middleware[] = $middleware_type.'-'.$site;
+            $middleware_name = $middleware_type.'-'.$site;
+            try {
+                new ReflectionClass($middleware_name);
+                $middleware[] = $middleware_name;
+            } catch (\Exception $exception) {
+            }
         }
 
         Route::group([
