@@ -57,22 +57,19 @@ class RouteCacheCommand extends Command
         $route_cache = '';
 
         foreach ($sites_list as $site_name => $sites) {
-            $config = [
-                'name'         => array_get($sites, 0, env('APP_DEV_NAME')),
+            $domain = array_get($sites, 0, env('APP_DEV_NAME'));
+            $routes = $this->getFreshApplicationRoutes([
+                'name'         => $domain,
                 'current_site' => $site_name,
-            ];
-            $routes = $this->getFreshApplicationRoutes($config);
-
+            ]);
             if (count($routes) > 0) {
-                foreach ($routes as $route) {
-                    $route->prepareForSerialization();
-                }
-                $route_cache .= $this->buildRouteCacheFile($routes);
+                $route_cache .= $this->buildSiteRouteFile($domain, $site_name, $routes);
             }
         }
 
         $this->files->put(
-            $this->laravel->getCachedRoutesPath(), $route_cache
+            $this->laravel->getCachedRoutesPath(),
+            $route_cache
         );
 
         $this->info('Routes cached successfully!');
@@ -100,9 +97,33 @@ class RouteCacheCommand extends Command
      *
      * @return string
      */
-    protected function buildRouteCacheFile(RouteCollection $routes)
+    protected function buildSiteRouteFile($domain, $site_name, RouteCollection $routes)
     {
-        $stub = $this->files->get(__DIR__.'/stubs/routes.stub');
+        $site_routes = $routes;
+        foreach ($site_routes as $route) {
+            $route->prepareForSerialization();
+        }
+        $output = $this->buildRouteCacheFile($site_routes);
+
+        foreach ($routes as $route) {
+            $route->action['domain'] = $domain;
+            $route->action['as'] = '['. $site_name.']'.$route->action['as'];
+            $route->prepareForSerialization();
+        }
+
+        return $output.$this->buildRouteCacheFile($routes, 'routes-sites');
+    }
+
+    /**
+     * Build the route cache file.
+     *
+     * @param \Illuminate\Routing\RouteCollection $routes
+     *
+     * @return string
+     */
+    protected function buildRouteCacheFile(RouteCollection $routes, $stub = 'routes')
+    {
+        $stub = $this->files->get(__DIR__.'/stubs/'.$stub.'.stub');
         $site_cache_requirements = "Config::get('multisite.current_site') == '".Config::get('multisite.current_site')."'";
         foreach (Config::get('multisite.site_cache_requirements.'.Config::get('multisite.current_site'), []) as $requirement) {
             $site_cache_requirements .= ' && '.$requirement;

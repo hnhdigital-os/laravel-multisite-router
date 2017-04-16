@@ -84,6 +84,8 @@ class RouteListCommand extends Command
      */
     protected function getRoutes()
     {
+        global $app;
+
         $columns = $this->getHeaders(true);
 
         $results = [];
@@ -96,7 +98,7 @@ class RouteListCommand extends Command
 
         foreach ($sites_list as $site_name => $config) {
             $config['current_site'] = $site_name;
-            $routes = $this->getFreshApplicationRoutes($config);
+            $routes = $app['router']->getRoutes();
 
             foreach ($routes as $route) {
                 $current_route_data = $this->getRouteInformation($route);

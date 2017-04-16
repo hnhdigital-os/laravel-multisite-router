@@ -1,0 +1,7 @@
+<?php
+
+app('router')->setRoutes(
+    unserialize(base64_decode('{{routes}}'))
+);
+
+?>

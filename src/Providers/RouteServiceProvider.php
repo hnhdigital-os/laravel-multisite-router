@@ -3,6 +3,7 @@
 namespace MultiSiteRouter\Providers;
 
 use App;
+use App\Http\Kernel;
 use Config;
 use MultiSiteRouter\ConsoleCommands\RouteCacheCommand;
 use MultiSiteRouter\ConsoleCommands\RouteListCommand;
@@ -12,6 +13,13 @@ use ReflectionClass;
 
 class RouteServiceProvider extends ServiceProvider
 {
+    /**
+     * Middleware.
+     *
+     * @var array
+     */
+    private $middelware = [];
+
     /**
      * Define your route model bindings, pattern filters, etc.
      *
@@ -46,7 +54,7 @@ class RouteServiceProvider extends ServiceProvider
 
         // Development specific
         if (!App::runningInConsole() && ($full_server_name = $server_name = $app->request->server('HTTP_HOST')) !== 'localhost') {
-            // Different URL makeup for local vs public system
+            // Different URL makeup for local vs production
             if (env('APP_ENV') === 'local') {
                 $server_port = ':'.$app->request->server('SERVER_PORT');
             }
@@ -74,22 +82,20 @@ class RouteServiceProvider extends ServiceProvider
     public function map()
     {
         global $app;
-
-        if (App::runningInConsole() && isset($_ENV['console_config'])) {
-
-            $app = $_ENV['console_config']['app'];
-            $app['config']->set('multisite.name', $_ENV['console_config']['name']);
-            $app['config']->set('multisite.current_site', $_ENV['console_config']['current_site']);
-            foreach ($app['config']->get('multisite.site_variable_defaults', []) as $variable_name => $default_value) {
-                $app['config']->set('multisite.'.$variable_name, $_ENV['console_config'][$variable_name]);
-            }
-        }
+        new Kernel($app, $app->router);
+        $this->middleware = $app->router->getMiddleware();
 
         if (function_exists('hookBeforeMultiSiteRouteProcessing')) {
             hookBeforeMultiSiteRouteProcessing();
         }
 
-        $this->mapRoute($app);
+        foreach (config::get('multisite.sites') as $site => $domains) {
+            $domain = array_get($domains, 0);
+            if (env('APP_DEV_NAME')) {
+                $domain = str_replace('.'.config::get('multisite.domain'), '.'.env('APP_DEV_NAME').'.'.config::get('multisite.domain'), $domain);
+            }
+            $this->mapRoute($domain, $site);
+        }
 
         if (function_exists('hookAfterMultiSiteRouteProcessing')) {
             hookAfterMultiSiteRouteProcessing();
@@ -103,31 +109,30 @@ class RouteServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    protected function mapRoute($app)
+    protected function mapRoute($domain, $site)
     {
-        global $app;
-        $available_middleware = $app->router->getMiddleware();
 
-        $site = config::get('multisite.current_site');
         $middleware = [config::get('multisite.middleware.'.$site, 'web')];
 
         $middleware_types = ['menu', 'check'];
 
         foreach ($middleware_types as $middleware_type) {
             $middleware_name = $middleware_type.'-'.$site;
-            if (array_has($available_middleware, $middleware_name)) {
+            if (array_has($this->middleware, $middleware_name)) {
                 $middleware[] = $middleware_name;
             }
         }
 
         Route::group([
             'middleware' => $middleware,
+            'domain'     => $domain,
             'namespace'  => 'App\\Http\\Controllers\\'.studly_case($site),
+            'as'         => '['.$site.'] ',
         ], function ($router) use ($site) {
             self::loadRouteFile($site, 'default.php');
-            $routes = array_diff(scandir(base_path('/routes/'.$site)), ['.', '..', 'default.php']);
-            foreach ($routes as $name) {
-                self::loadRouteFile($site, $name);
+            $route_files = array_diff(scandir(base_path('/routes/'.$site)), ['.', '..', 'default.php']);
+            foreach ($route_files as $file_name) {
+                self::loadRouteFile($site, $file_name);
             }
         });
     }
@@ -137,18 +142,18 @@ class RouteServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    protected function loadRouteFile($site, $route_file)
+    protected function loadRouteFile($site, $file_name)
     {
-        $entries = explode('.', pathinfo($route_file, PATHINFO_FILENAME));
+        $entries = explode('.', pathinfo($file_name, PATHINFO_FILENAME));
 
-        $middleware = [];
+        $group_options = [];
         if (count($entries) >= 2) {
             array_pop($entries);
-            $middleware = ['middleware' => $entries];
+            $group_options['middleware'] = $entries;
         }
 
-        Route::group($middleware, function () use ($site, $route_file) {
-            require_once base_path('/routes/'.$site.'/'.$route_file);
+        Route::group($group_options, function () use ($site, $file_name) {
+            require_once base_path('/routes/'.$site.'/'.$file_name);
         });        
     }
 }
