@@ -59,7 +59,9 @@ class RouteServiceProvider extends ServiceProvider
                 $server_port = ':'.$app->request->server('SERVER_PORT');
             }
 
-            $server_name = str_replace(['-'.env('APP_DEV_NAME'), '.'.env('APP_DEV_NAME')], '', $server_name);
+            if (env('APP_DEV_NAME') != '') {
+                $server_name = str_replace(['-'.env('APP_DEV_NAME'), '.'.env('APP_DEV_NAME')], '', $server_name);
+            }
 
             // Remove underscore and redirect to dashed version
             if (stripos($server_name, '_') !== false || stripos($server_name, 'www.') !== false) {
@@ -91,7 +93,7 @@ class RouteServiceProvider extends ServiceProvider
 
         foreach (config::get('multisite.sites') as $site => $domains) {
             $domain = array_get($domains, 0);
-            if (env('APP_DEV_NAME')) {
+            if (env('APP_DEV_NAME') != '') {
                 $domain = str_replace('.'.config::get('multisite.domain'), '.'.env('APP_DEV_NAME').'.'.config::get('multisite.domain'), $domain);
             }
             $this->mapRoute($domain, $site);
