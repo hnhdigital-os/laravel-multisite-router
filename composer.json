@@ -1,12 +1,12 @@
 {
-    "name": "bluora/laravel-multisite-router",
+    "name": "hnhdigital-os/laravel-multisite-router",
     "description": "Provides routing for multi-site application",
-    "keywords": ["laravel"],
+    "keywords": ["laravel","router"],
     "license": "MIT",
     "authors": [
         {
             "name": "Rocco Howard",
-            "email": "rocco@bluora.com.au"
+            "email": "rocco@hnh.digital"
         }
     ],
     "require": {
