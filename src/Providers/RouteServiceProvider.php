@@ -27,7 +27,7 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->serverName();        
+        $this->serverName();
 
         if (file_exists($multisite_file = base_path('routes/multisite.php'))) {
             $multisite_function = include_once $multisite_file;
@@ -92,10 +92,16 @@ class RouteServiceProvider extends ServiceProvider
         }
 
         foreach (config::get('multisite.sites') as $site => $domains) {
+            if (file_exists(base_path('/routes/'.$site.'.php'))) {
+                continue;
+            }
             $domain = array_get($domains, 0);
             if (env('APP_DEV_NAME') != '') {
-                $domain = str_replace('.'.config::get('multisite.domain'), '.'.env('APP_DEV_NAME').'.'.config::get('multisite.domain'), $domain);
+                foreach (config('multisite.allowed_domains', []) as $allowed_domain) {
+                    $domain = str_replace('.'.$allowed_domain, '.'.env('APP_DEV_NAME').'.'.$allowed_domain, $domain);
+                }
             }
+
             $this->mapRoute($domain, $site);
         }
 
@@ -113,7 +119,6 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function mapRoute($domain, $site)
     {
-
         $middleware = [config::get('multisite.middleware.'.$site, 'web')];
 
         $middleware_types = ['menu', 'check'];
