@@ -1,6 +1,6 @@
 <?php
 
-namespace MultiSiteRouter\ConsoleCommands;
+namespace HnhDigital\LaravelMultisiteRouter;
 
 use Config;
 use Illuminate\Console\Command;

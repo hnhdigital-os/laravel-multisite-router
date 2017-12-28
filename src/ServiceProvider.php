@@ -1,17 +1,15 @@
 <?php
 
-namespace MultiSiteRouter\Providers;
+namespace HnhDigital\LaravelMultisiteRouter;
 
 use App;
 use App\Http\Kernel;
 use Config;
-use MultiSiteRouter\ConsoleCommands\RouteCacheCommand;
-use MultiSiteRouter\ConsoleCommands\RouteListCommand;
-use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
+use Illuminate\Foundation\Support\Providers\RouteServiceProvider as RouteServiceProvider;
 use Illuminate\Support\Facades\Route;
 use ReflectionClass;
 
-class RouteServiceProvider extends ServiceProvider
+class ServiceProvider extends RouteServiceProvider
 {
     /**
      * Middleware.
