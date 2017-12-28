@@ -109,7 +109,6 @@ class ServiceProvider extends RouteServiceProvider
 
         // Interate through sites list.
         foreach ($this->app['config']->get('multisite.sites') as $site => $domain) {
-            print_r([$site, $domain]);
             $this->mapSite($site, $domain);
         }
     }
