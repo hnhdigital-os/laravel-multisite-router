@@ -107,7 +107,7 @@ class RouteCacheCommand extends Command
 
         foreach ($routes as $route) {
             $route->action['domain'] = $domain;
-            $route->action['as'] = '['. $site_name.']'.$route->action['as'];
+            $route->action['as'] = '['.$site_name.']'.$route->action['as'];
             $route->prepareForSerialization();
         }
 
