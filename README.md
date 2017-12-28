@@ -1,6 +1,13 @@
-# Laravel Multi-Site Router
+```
+___  ___      _ _   _     _ _      ______            _            
+|  \/  |     | | | (_)   (_) |     | ___ \          | |           
+| .  . |_   _| | |_ _ ___ _| |_ ___| |_/ /___  _   _| |_ ___ _ __ 
+| |\/| | | | | | __| / __| | __/ _ \    // _ \| | | | __/ _ \ '__|
+| |  | | |_| | | |_| \__ \ | ||  __/ |\ \ (_) | |_| | ||  __/ |   
+\_|  |_/\__,_|_|\__|_|___/_|\__\___\_| \_\___/ \__,_|\__\___|_|
+```
 
-Provides a file and folder based route structure and ability to apply middleware using the route file name.
+Implements routing configuration via a file and folder based route structure, domain structure including a dev name (eg staging), and the ability to apply middleware using the route file name.
 
 [![Latest Stable Version](https://poser.pugx.org/hnhdigital-os/laravel-multisite-router/v/stable.svg)](https://packagist.org/packages/hnhdigital-os/laravel-multisite-router) [![Total Downloads](https://poser.pugx.org/hnhdigital-os/laravel-multisite-router/downloads.svg)](https://packagist.org/packages/hnhdigital-os/laravel-multisite-router) [![Latest Unstable Version](https://poser.pugx.org/hnhdigital-os/laravel-multisite-router/v/unstable.svg)](https://packagist.org/packages/hnhdigital-os/laravel-multisite-router) [![License](https://poser.pugx.org/hnhdigital-os/laravel-multisite-router/license.svg)](https://packagist.org/packages/hnhdigital-os/laravel-multisite-router)
 
