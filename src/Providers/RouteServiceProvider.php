@@ -36,11 +36,11 @@ class RouteServiceProvider extends ServiceProvider
             }
         }
 
-        parent::boot();
-
         if (file_exists($bindings_file = base_path('routes/bindings.php'))) {
             require_once $bindings_file;
         }
+
+        parent::boot();
     }
 
     /**
@@ -135,11 +135,15 @@ class RouteServiceProvider extends ServiceProvider
             'domain'     => $domain,
             'namespace'  => 'App\\Http\\Controllers\\'.studly_case($site),
             'as'         => '['.$site.'] ',
-        ], function ($router) use ($site) {
+        ], function ($group) use ($site) {
             self::loadRouteFile($site, 'default.php');
             $route_files = array_diff(scandir(base_path('/routes/'.$site)), ['.', '..', 'default.php']);
             foreach ($route_files as $file_name) {
                 self::loadRouteFile($site, $file_name);
+            }
+
+            if (file_exists(base_path('/routes/filters/'.$site.'.php'))) {
+                require_once base_path('/routes/filters/'.$site.'.php');
             }
         });
     }
@@ -159,8 +163,8 @@ class RouteServiceProvider extends ServiceProvider
             $group_options['middleware'] = $entries;
         }
 
-        Route::group($group_options, function () use ($site, $file_name) {
+        Route::group($group_options, function ($group) use ($site, $file_name) {
             require_once base_path('/routes/'.$site.'/'.$file_name);
-        });        
+        });
     }
 }
