@@ -1,9 +1,0 @@
-<?php
-
-if ({{site_cache_requirements}}) {
-    app('router')->setRoutes(
-        unserialize(base64_decode('{{routes}}'))
-    );
-}
-
-?>
