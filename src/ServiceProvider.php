@@ -7,7 +7,6 @@ use App\Http\Kernel;
 use Config;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as RouteServiceProvider;
 use Illuminate\Support\Facades\Route;
-use ReflectionClass;
 
 class ServiceProvider extends RouteServiceProvider
 {
