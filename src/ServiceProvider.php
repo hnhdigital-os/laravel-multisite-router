@@ -19,6 +19,13 @@ class ServiceProvider extends RouteServiceProvider
     private $middelware = [];
 
     /**
+     * Simple routes.
+     *
+     * @var array
+     */
+    private $simple_routes = [];
+
+    /**
      * Middleware types for automatic inclusion.
      *
      * @var array
@@ -111,27 +118,39 @@ class ServiceProvider extends RouteServiceProvider
         // Get the middleware.
         $this->middleware = $app->router->getMiddleware();
 
-        $single_route_files = [];
-
         // Interate through sites list.
         foreach ($app['config']->get('multisite.sites') as $site => $domain) {
-
-            // Ignore sites that have a single route file.
-            if (file_exists(base_path('/routes/'.$site.'.php'))) {
-                $single_route_files[] = $site;
-                continue;
-            }
-
-            // Replace the development name if set.
-            if (env('APP_DEV_NAME') != '') {
-                foreach ($app['config']->get('multisite.allowed_domains', []) as $allowed_domain) {
-                    $domain = str_replace('.'.$allowed_domain, '.'.env('APP_DEV_NAME').'.'.$allowed_domain, $domain);
-                }
-            }
-
-            // Map these routes.
-            $this->mapRoute($domain, $site);
+            $this->mapSite($site, $domain);            
         }
+    }
+
+    /**
+     * Map the given site/domain.
+     *
+     * @param string $domain
+     * @param string $site
+     *
+     * @return array
+     */
+    private function mapSite($site, $domain)
+    {
+        global $app;
+
+        // Ignore sites that have a single route file.
+        if (file_exists(base_path('/routes/'.$site.'.php'))) {
+            $this->simple_routes[] = $site;
+            return;
+        }
+
+        // Replace the development name if set.
+        if (env('APP_DEV_NAME') != '') {
+            foreach ($app['config']->get('multisite.allowed_domains', []) as $allowed_domain) {
+                $domain = str_replace('.'.$allowed_domain, '.'.env('APP_DEV_NAME').'.'.$allowed_domain, $domain);
+            }
+        }
+
+        // Map these routes.
+        $this->mapRoute($site, $domain);
     }
 
     /**
@@ -139,12 +158,12 @@ class ServiceProvider extends RouteServiceProvider
      *
      * These routes all receive session state, CSRF protection, etc.
      *
-     * @param string $domain
      * @param string $site
+     * @param string $domain
      *
      * @return void
      */
-    protected function mapRoute($domain, $site)
+    protected function mapRoute($site, $domain)
     {
         global $app;
 
