@@ -4,18 +4,26 @@ namespace HnhDigital\LaravelMultisiteRouter;
 
 use App;
 use App\Http\Kernel;
-use Config;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as RouteServiceProvider;
 use Illuminate\Support\Facades\Route;
 
 class ServiceProvider extends RouteServiceProvider
 {
     /**
-     * Middleware.
+     * Local copy of the applications middleware.
      *
      * @var array
      */
     private $middelware = [];
+
+    /**
+     * Middleware types for automatic inclusion.
+     *
+     * @var array
+     */
+    private $middleware_types = [
+        'menu', 'check'
+    ];
 
     /**
      * Define your route model bindings, pattern filters, etc.
@@ -25,18 +33,8 @@ class ServiceProvider extends RouteServiceProvider
     public function boot()
     {
         $this->serverName();
-
-        if (file_exists($multisite_file = base_path('routes/multisite.php'))) {
-            $multisite_function = include_once $multisite_file;
-            if ($multisite_function instanceof \Closure) {
-                $multisite_function();
-            }
-        }
-
-        if (file_exists($bindings_file = base_path('routes/bindings.php'))) {
-            require_once $bindings_file;
-        }
-
+        $this->loadFile(base_path('routes/multisite.php'));
+        $this->loadFile(base_path('routes/bindings.php'));
         parent::boot();
     }
 
@@ -74,6 +72,25 @@ class ServiceProvider extends RouteServiceProvider
     }
 
     /**
+     * Load a file and run the closure if it returns that.
+     *
+     * @param string $path
+     *
+     * @return void
+     */
+    private function loadFile($path, $local_variables = [])
+    {
+        if (file_exists($path)) {
+            extract($local_variables);
+
+            $closure = include_once $path;
+            if ($closure instanceof \Closure) {
+                $closure();
+            }
+        }
+    }
+
+    /**
      * Define the routes for the application.
      *
      * @return void
@@ -81,29 +98,33 @@ class ServiceProvider extends RouteServiceProvider
     public function map()
     {
         global $app;
+
+        // Start a new kernel.
         new Kernel($app, $app->router);
+
+        // Get the middleware.
         $this->middleware = $app->router->getMiddleware();
 
-        if (function_exists('hookBeforeMultiSiteRouteProcessing')) {
-            hookBeforeMultiSiteRouteProcessing();
-        }
+        $single_route_files = [];
 
-        foreach (config::get('multisite.sites') as $site => $domains) {
+        // Interate through sites list.
+        foreach ($app['config']->get('multisite.sites') as $site => $domain) {
+
+            // Ignore sites that have a single route file.
             if (file_exists(base_path('/routes/'.$site.'.php'))) {
+                $single_route_files[] = $site;
                 continue;
             }
-            $domain = array_get($domains, 0);
+
+            // Replace the development name if set.
             if (env('APP_DEV_NAME') != '') {
-                foreach (config('multisite.allowed_domains', []) as $allowed_domain) {
+                foreach ($app['config']->get('multisite.allowed_domains', []) as $allowed_domain) {
                     $domain = str_replace('.'.$allowed_domain, '.'.env('APP_DEV_NAME').'.'.$allowed_domain, $domain);
                 }
             }
 
+            // Map these routes.
             $this->mapRoute($domain, $site);
-        }
-
-        if (function_exists('hookAfterMultiSiteRouteProcessing')) {
-            hookAfterMultiSiteRouteProcessing();
         }
     }
 
@@ -112,56 +133,73 @@ class ServiceProvider extends RouteServiceProvider
      *
      * These routes all receive session state, CSRF protection, etc.
      *
+     * @param string $domain
+     * @param string $site
+     *
      * @return void
      */
     protected function mapRoute($domain, $site)
     {
-        $middleware = [config::get('multisite.middleware.'.$site, 'web')];
+        global $app;
 
-        $middleware_types = ['menu', 'check'];
+        // Setup middleware array. Default to web.
+        $middleware_array = [$app['config']->get('multisite.middleware.'.$site, 'web')];
 
-        foreach ($middleware_types as $middleware_type) {
+        // Check if these middleware types exist.
+        foreach ($this->middleware_types as $middleware_type) {
             $middleware_name = $middleware_type.'-'.$site;
             if (array_has($this->middleware, $middleware_name)) {
-                $middleware[] = $middleware_name;
+                $middleware_array[] = $middleware_name;
             }
         }
 
+        // Create a route group around these routes.
         Route::group([
-            'middleware' => $middleware,
+            'middleware' => $middleware_array,
             'domain'     => $domain,
             'namespace'  => 'App\\Http\\Controllers\\'.studly_case($site),
             'as'         => '['.$site.'] ',
         ], function ($group) use ($site) {
-            self::loadRouteFile($site, 'default.php');
+
+            // Include the default file.
+            $this->loadRouteFile($site, 'default.php');
+
+            // Scan all route files, excluding the default.
             $route_files = array_diff(scandir(base_path('/routes/'.$site)), ['.', '..', 'default.php']);
+
+            // Load and process each route file.
             foreach ($route_files as $file_name) {
-                self::loadRouteFile($site, $file_name);
+                $this->loadRouteFile($site, $file_name);
             }
 
-            if (file_exists(base_path('/routes/filters/'.$site.'.php'))) {
-                require_once base_path('/routes/filters/'.$site.'.php');
-            }
+            // Apply route filters if file is exists.
+            $this->loadFile(base_path('/routes/filters/'.$site.'.php'), ['group' => $group]);
         });
     }
 
     /**
      * Load the route.
      *
+     * @param string $site
+     * @param string $path
+     *
      * @return void
      */
-    protected function loadRouteFile($site, $file_name)
+    protected function loadRouteFile($site, $path)
     {
-        $entries = explode('.', pathinfo($file_name, PATHINFO_FILENAME));
+        // Discover middleware in filename.
+        $entries = explode('.', pathinfo($path, PATHINFO_FILENAME));
 
+        // Allocate middleware to the group.
         $group_options = [];
         if (count($entries) >= 2) {
             array_pop($entries);
             $group_options['middleware'] = $entries;
         }
 
-        Route::group($group_options, function ($group) use ($site, $file_name) {
-            require_once base_path('/routes/'.$site.'/'.$file_name);
+        // Include the file at the given path.
+        Route::group($group_options, function ($group) use ($site, $path) {
+            require_once base_path('/routes/'.$site.'/'.$path);
         });
     }
 }
