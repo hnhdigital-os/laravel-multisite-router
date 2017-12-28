@@ -30,5 +30,7 @@
                 "HnhDigital\\LaravelMultisiteRouter\\ServiceProvider"
             ]
         }
-    }
+    },
+    "prefer-stable": true,
+    "minimum-stability" : "dev"
 }
