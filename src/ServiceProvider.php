@@ -3,7 +3,6 @@
 namespace HnhDigital\LaravelMultisiteRouter;
 
 use App;
-use App\Http\Kernel;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as RouteServiceProvider;
 use Illuminate\Support\Facades\Route;
 
@@ -56,17 +55,15 @@ class ServiceProvider extends RouteServiceProvider
      */
     private function serverName()
     {
-        global $app;
-
         // No adjustments required when running in console.
         if (App::runningInConsole()) {
             return;
         }
 
         // Get the server name.
-        $full_server_name = $server_name = $app->request->server('HTTP_HOST');
+        $full_server_name = $server_name = $this->app->request->server('HTTP_HOST');
 
-        // Convert if the dev name is included with a hyphen.s
+        // Convert if the dev name is included with a hyphen.
         if (env('APP_DEV_NAME') != '') {
             $server_name = str_replace(['-'.env('APP_DEV_NAME'), '.'.env('APP_DEV_NAME')], '', $server_name);
         }
@@ -74,14 +71,14 @@ class ServiceProvider extends RouteServiceProvider
         // Redirect if servername contains an underscore, or the server name begins with www.
         if (stripos($server_name, '_') !== false || stripos($server_name, 'www.') !== false) {
             header('HTTP/1.1 301 Moved Permanently');
-            header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.str_replace(['_', 'www.'], ['-', ''], $app->request->server('HTTP_HOST')));
+            header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.str_replace(['_', 'www.'], ['-', ''], $this->app->request->server('HTTP_HOST')));
             exit();
         }
 
         // Update the configuration.
-        $app['config']->set('multisite.name', $server_name);
-        $app['config']->set('session.domain', $full_server_name);
-        $app['config']->set('session.cookie', $app['config']->get('multisite.default_session_name'));
+        $this->app['config']->set('multisite.name', $server_name);
+        $this->app['config']->set('session.domain', $full_server_name);
+        $this->app['config']->set('session.cookie', $this->app['config']->get('multisite.default_session_name'));
     }
 
     /**
@@ -93,10 +90,14 @@ class ServiceProvider extends RouteServiceProvider
      */
     private function loadFile($path, $local_variables = [])
     {
+        $local_variables['app'] = $this->app;
+
         if (file_exists($path)) {
             extract($local_variables);
 
-            $closure = include_once $path;
+            $closure = require $path;
+
+            // A closure was returned instead of just running code.
             if ($closure instanceof \Closure) {
                 $closure();
             }
@@ -110,16 +111,12 @@ class ServiceProvider extends RouteServiceProvider
      */
     public function map()
     {
-        global $app;
-
-        // Start a new kernel.
-        new Kernel($app, $app->router);
-
         // Get the middleware.
-        $this->middleware = $app->router->getMiddleware();
+        $this->middleware = $this->app->router->getMiddleware();
 
         // Interate through sites list.
-        foreach ($app['config']->get('multisite.sites') as $site => $domain) {
+        foreach ($this->app['config']->get('multisite.sites') as $site => $domain) {
+            print_r([$site, $domain]);
             $this->mapSite($site, $domain);
         }
     }
@@ -134,18 +131,14 @@ class ServiceProvider extends RouteServiceProvider
      */
     private function mapSite($site, $domain)
     {
-        global $app;
-
         // Ignore sites that have a single route file.
         if (file_exists(base_path('/routes/'.$site.'.php'))) {
-            $this->simple_routes[] = $site;
-
             return;
         }
 
         // Replace the development name if set.
         if (env('APP_DEV_NAME') != '') {
-            foreach ($app['config']->get('multisite.allowed_domains', []) as $allowed_domain) {
+            foreach ($this->app['config']->get('multisite.allowed_domains', []) as $allowed_domain) {
                 $domain = str_replace('.'.$allowed_domain, '.'.env('APP_DEV_NAME').'.'.$allowed_domain, $domain);
             }
         }
@@ -166,10 +159,8 @@ class ServiceProvider extends RouteServiceProvider
      */
     protected function mapRoute($site, $domain)
     {
-        global $app;
-
         // Setup middleware array. Default to web.
-        $middleware_array = [$app['config']->get('multisite.middleware.'.$site, 'web')];
+        $middleware_array = [$this->app['config']->get('multisite.middleware.'.$site, 'web')];
 
         // Check if these middleware types exist.
         foreach ($this->middleware_types as $middleware_type) {
@@ -198,7 +189,7 @@ class ServiceProvider extends RouteServiceProvider
                 $this->loadRouteFile($site, $file_name);
             }
 
-            // Apply route filters if file is exists.
+            // Apply route filters if file exists.
             $this->loadFile(base_path('/routes/filters/'.$site.'.php'), ['group' => $group]);
         });
     }
@@ -227,7 +218,7 @@ class ServiceProvider extends RouteServiceProvider
 
         // Include the file at the given path.
         Route::group($group_options, function ($group) use ($site, $path) {
-            require_once base_path('/routes/'.$site.'/'.$path);
+            $this->loadFile(base_path('/routes/'.$site.'/'.$path), ['group' => $group]);
         });
     }
 }
