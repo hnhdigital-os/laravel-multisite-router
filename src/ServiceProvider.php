@@ -13,6 +13,8 @@ class ServiceProvider extends RouteServiceProvider
      * Local copy of the applications middleware.
      *
      * @var array
+     *
+     * @SuppressWarnings(PHPMD.UnusedPrivateField)
      */
     private $middelware = [];
 
@@ -42,33 +44,37 @@ class ServiceProvider extends RouteServiceProvider
      * Define server name and session naming.
      *
      * @return void
+     *
+     * @SuppressWarnings(PHPMD.ExitExpression)
      */
     private function serverName()
     {
         global $app;
 
-        // Development specific
-        if (!App::runningInConsole() && ($full_server_name = $server_name = $app->request->server('HTTP_HOST')) !== 'localhost') {
-            // Different URL makeup for local vs production
-            if (env('APP_ENV') === 'local') {
-                $server_port = ':'.$app->request->server('SERVER_PORT');
-            }
-
-            if (env('APP_DEV_NAME') != '') {
-                $server_name = str_replace(['-'.env('APP_DEV_NAME'), '.'.env('APP_DEV_NAME')], '', $server_name);
-            }
-
-            // Remove underscore and redirect to dashed version
-            if (stripos($server_name, '_') !== false || stripos($server_name, 'www.') !== false) {
-                header('HTTP/1.1 301 Moved Permanently');
-                header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.str_replace(['_', 'www.'], ['-', ''], $app->request->server('HTTP_HOST')));
-                exit();
-            }
-
-            $app['config']->set('multisite.name', $server_name);
-            $app['config']->set('session.domain', $full_server_name);
-            $app['config']->set('session.cookie', $app['config']->get('multisite.default_session_name'));
+        // No adjustments required when running in console.
+        if (App::runningInConsole()) {
+            return;
         }
+
+        // Get the server name.
+        $full_server_name = $server_name = $app->request->server('HTTP_HOST');
+
+        // Convert if the dev name is included with a hyphen.s
+        if (env('APP_DEV_NAME') != '') {
+            $server_name = str_replace(['-'.env('APP_DEV_NAME'), '.'.env('APP_DEV_NAME')], '', $server_name);
+        }
+
+        // Redirect if servername contains an underscore, or the server name begins with www.
+        if (stripos($server_name, '_') !== false || stripos($server_name, 'www.') !== false) {
+            header('HTTP/1.1 301 Moved Permanently');
+            header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.str_replace(['_', 'www.'], ['-', ''], $app->request->server('HTTP_HOST')));
+            exit();
+        }
+
+        // Update the configuration.
+        $app['config']->set('multisite.name', $server_name);
+        $app['config']->set('session.domain', $full_server_name);
+        $app['config']->set('session.cookie', $app['config']->get('multisite.default_session_name'));
     }
 
     /**
@@ -184,6 +190,8 @@ class ServiceProvider extends RouteServiceProvider
      * @param string $path
      *
      * @return void
+     *
+     * @SuppressWarnings(PHPMD.UnusedLocalVariable)
      */
     protected function loadRouteFile($site, $path)
     {
