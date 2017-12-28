@@ -18,13 +18,6 @@ class ServiceProvider extends RouteServiceProvider
     private $middelware = [];
 
     /**
-     * Simple routes.
-     *
-     * @var array
-     */
-    private $simple_routes = [];
-
-    /**
      * Middleware types for automatic inclusion.
      *
      * @var array
