@@ -35,6 +35,7 @@ class ServiceProvider extends RouteServiceProvider
     {
         $this->serverName();
         $this->loadFile(base_path('routes/multisite.php'));
+        $this->loadFile(base_path('routes/patterns.php'));
         $this->loadFile(base_path('routes/bindings.php'));
         parent::boot();
     }
@@ -59,6 +60,7 @@ class ServiceProvider extends RouteServiceProvider
         // Convert if the dev name is included with a hyphen.
         if (env('APP_DEV_NAME') != '') {
             $server_name = str_replace(['-'.env('APP_DEV_NAME'), '.'.env('APP_DEV_NAME')], '', $server_name);
+            $server_name = str_replace(env('APP_DEV_NAME'), '', $server_name);
         }
 
         // Redirect if servername contains an underscore, or the server name begins with www.
@@ -68,10 +70,29 @@ class ServiceProvider extends RouteServiceProvider
             exit();
         }
 
-        // Update the configuration.
-        $this->app['config']->set('multisite.name', $server_name);
+        // Sub domain. Removed allowed domains.
+        $current_site = $sub_domain = substr(str_replace($this->app['config']->get('multisite.allowed.domains'), '', $server_name), 0, -1);
+
+        // Server name. Remove the sub-domain partial.
+        $current_domain = substr($server_name, strlen($sub_domain) + 1);
+
+        // Explode the sub domain.
+        $sub_domain_elements = explode('.', $sub_domain);
+
+        // Get the first part. This is use to describe the site.
+        $current_site = array_get($sub_domain_elements, 0);
+
+        // Update the platform using the sub domains remaining partials.
+        $current_group = array_get($sub_domain_elements, 1, '');
+
+        // Update the current multisite configuration.
+        $this->app['config']->set('multisite.current.domain', $current_domain);
+        $this->app['config']->set('multisite.current.site', $current_site);
+        $this->app['config']->set('multisite.current.group', $current_group);
+
+        // Update the session configuration.
         $this->app['config']->set('session.domain', $full_server_name);
-        $this->app['config']->set('session.cookie', $this->app['config']->get('multisite.default_session_name'));
+        $this->app['config']->set('session.cookie', $this->app['config']->get('multisite.default.session'));
     }
 
     /**
@@ -130,7 +151,7 @@ class ServiceProvider extends RouteServiceProvider
 
         // Replace the development name if set.
         if (env('APP_DEV_NAME') != '') {
-            foreach ($this->app['config']->get('multisite.allowed_domains', []) as $allowed_domain) {
+            foreach ($this->app['config']->get('multisite.allowed.domains', []) as $allowed_domain) {
                 $domain = str_replace('.'.$allowed_domain, '.'.env('APP_DEV_NAME').'.'.$allowed_domain, $domain);
             }
         }
@@ -152,7 +173,7 @@ class ServiceProvider extends RouteServiceProvider
     protected function mapRoute($site, $domain)
     {
         // Setup middleware array. Default to web.
-        $middleware_array = [$this->app['config']->get('multisite.middleware.'.$site, 'web')];
+        $middleware_array = [$this->app['config']->get('multisite.site.middleware.'.$site, 'web')];
 
         // Check if these middleware types exist.
         foreach ($this->middleware_types as $middleware_type) {
