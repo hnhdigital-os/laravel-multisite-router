@@ -31,7 +31,7 @@ class ServiceProvider extends RouteServiceProvider
      * @var array
      */
     private $middleware_types = [
-        'menu', 'check'
+        'menu', 'check',
     ];
 
     /**
@@ -120,7 +120,7 @@ class ServiceProvider extends RouteServiceProvider
 
         // Interate through sites list.
         foreach ($app['config']->get('multisite.sites') as $site => $domain) {
-            $this->mapSite($site, $domain);            
+            $this->mapSite($site, $domain);
         }
     }
 
@@ -139,6 +139,7 @@ class ServiceProvider extends RouteServiceProvider
         // Ignore sites that have a single route file.
         if (file_exists(base_path('/routes/'.$site.'.php'))) {
             $this->simple_routes[] = $site;
+
             return;
         }
 
