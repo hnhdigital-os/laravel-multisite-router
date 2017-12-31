@@ -33,21 +33,22 @@ class ServiceProvider extends RouteServiceProvider
      */
     public function boot()
     {
-        $this->serverName();
-        $this->loadFile(base_path('routes/multisite.php'));
-        $this->loadFile(base_path('routes/patterns.php'));
-        $this->loadFile(base_path('routes/bindings.php'));
+        $this->bootstrap();
+        $this->customBootstrap();
+        $this->routePatterns();
+        $this->routeBindings();
+
         parent::boot();
     }
 
     /**
-     * Define server name and session naming.
+     * Determinte elements of the server name.
      *
      * @return void
      *
      * @SuppressWarnings(PHPMD.ExitExpression)
      */
-    private function serverName()
+    private function bootstrap()
     {
         // No adjustments required when running in console.
         if (App::runningInConsole()) {
@@ -55,7 +56,11 @@ class ServiceProvider extends RouteServiceProvider
         }
 
         // Get the server name.
-        $full_server_name = $server_name = $this->app->request->server('HTTP_HOST');
+        $server_name = $this->app->request->server('HTTP_HOST');
+
+        // Update the session configuration.
+        $this->app['config']->set('session.domain', $server_name);
+        $this->app['config']->set('session.cookie', $this->app['config']->get('multisite.default.session'));
 
         // Convert if the dev name is included with a hyphen.
         if (env('APP_DEV_NAME') != '') {
@@ -89,10 +94,44 @@ class ServiceProvider extends RouteServiceProvider
         $this->app['config']->set('multisite.current.domain', $current_domain);
         $this->app['config']->set('multisite.current.site', $current_site);
         $this->app['config']->set('multisite.current.group', $current_group);
+    }
 
-        // Update the session configuration.
-        $this->app['config']->set('session.domain', $full_server_name);
-        $this->app['config']->set('session.cookie', $this->app['config']->get('multisite.default.session'));
+    /**
+     * Define any route changes or configuration changes.
+     *
+     * @return void
+     */
+    private function customBootstrap()
+    {
+        $this->loadFile(base_path('routes/multisite.php'));
+    }
+
+    /**
+     * Load any defined route bindings.
+     *
+     * @return void
+     */
+    private function routeBindings()
+    {
+        $this->loadFile(base_path('routes/bindings.php'));
+    }
+
+    /**
+     * Load any defined route patterns.
+     *
+     * @return void.
+     */
+    private function routePatterns()
+    {
+        // Patterns found in a file.
+        $this->loadFile(base_path('routes/patterns.php'));
+
+        // Patterns found in the config.
+        if ($patterns = $this->app['config']->get('multisite.route.patterns', [])) {
+            foreach ($patterns as $key => $value) {
+                Route::pattern($key, $value);
+            }
+        }
     }
 
     /**
@@ -145,7 +184,7 @@ class ServiceProvider extends RouteServiceProvider
     private function mapSite($site, $domain)
     {
         // Ignore sites that have a single route file.
-        if (file_exists(base_path('/routes/'.$site.'.php'))) {
+        if (file_exists(base_path('routes/'.$site.'.php'))) {
             return;
         }
 
@@ -154,6 +193,11 @@ class ServiceProvider extends RouteServiceProvider
             foreach ($this->app['config']->get('multisite.allowed.domains', []) as $allowed_domain) {
                 $domain = str_replace('.'.$allowed_domain, '.'.env('APP_DEV_NAME').'.'.$allowed_domain, $domain);
             }
+        }
+
+        // Route folder does not exist for this site.
+        if (!file_exists(base_path('routes/'.$site))) {
+            return;
         }
 
         // Map these routes.
@@ -195,7 +239,7 @@ class ServiceProvider extends RouteServiceProvider
             $this->loadRouteFile($site, 'default.php');
 
             // Scan all route files, excluding the default.
-            $route_files = array_diff(scandir(base_path('/routes/'.$site)), ['.', '..', 'default.php']);
+            $route_files = array_diff(scandir(base_path('routes/'.$site)), ['.', '..', 'default.php']);
 
             // Load and process each route file.
             foreach ($route_files as $file_name) {
@@ -203,7 +247,7 @@ class ServiceProvider extends RouteServiceProvider
             }
 
             // Apply route filters if file exists.
-            $this->loadFile(base_path('/routes/filters/'.$site.'.php'), ['group' => $group]);
+            $this->loadFile(base_path('routes/filters/'.$site.'.php'), ['group' => $group]);
         });
     }
 
@@ -231,7 +275,7 @@ class ServiceProvider extends RouteServiceProvider
 
         // Include the file at the given path.
         Route::group($group_options, function ($group) use ($site, $path) {
-            $this->loadFile(base_path('/routes/'.$site.'/'.$path), ['group' => $group]);
+            $this->loadFile(base_path('routes/'.$site.'/'.$path), ['group' => $group]);
         });
     }
 }
