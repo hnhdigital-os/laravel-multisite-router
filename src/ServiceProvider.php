@@ -45,8 +45,6 @@ class ServiceProvider extends RouteServiceProvider
      * Determinte elements of the server name.
      *
      * @return void
-     *
-     * @SuppressWarnings(PHPMD.ExitExpression)
      */
     private function bootstrap()
     {
@@ -68,11 +66,14 @@ class ServiceProvider extends RouteServiceProvider
             $server_name = str_replace(env('APP_DEV_NAME'), '', $server_name);
         }
 
-        // Redirect if servername contains an underscore, or the server name begins with www.
-        if (stripos($server_name, '_') !== false || stripos($server_name, 'www.') !== false) {
-            header('HTTP/1.1 301 Moved Permanently');
-            header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.str_replace(['_', 'www.'], ['-', ''], $this->app->request->server('HTTP_HOST')));
-            exit();
+        // If defined as true in configuration, redirect request without underscores.
+        if ($this->app['config']->get('multisite.redirect.underscore', false) && stripos($server_name, '_') !== false) {
+            $this->redirect(str_replace('_', '-', $this->app->request->server('HTTP_HOST')));
+        }
+
+        // If defined as true in configuration, redirect request without www.
+        if ($this->app['config']->get('multisite.redirect.www', false) && stripos($server_name, 'www.') !== false) {
+            $this->redirect(str_replace('www.', '', $this->app->request->server('HTTP_HOST')));
         }
 
         // Sub domain. Removed allowed domains.
@@ -94,6 +95,22 @@ class ServiceProvider extends RouteServiceProvider
         $this->app['config']->set('multisite.current.domain', $current_domain);
         $this->app['config']->set('multisite.current.site', $current_site);
         $this->app['config']->set('multisite.current.group', $current_group);
+    }
+
+    /**
+     * Redirect to provided url.
+     *
+     * @param string $url
+     *
+     * @return void
+     *
+     * @SuppressWarnings(PHPMD.ExitExpression)
+     */
+    private function redirect($url)
+    {
+        header('HTTP/1.1 301 Moved Permanently');
+        header('Location: '.'http'.((request()->secure()) ? 's' : '').'://'.$url);
+        exit();
     }
 
     /**
