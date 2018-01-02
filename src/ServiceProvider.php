@@ -185,7 +185,7 @@ class ServiceProvider extends RouteServiceProvider
         $this->middleware = $this->app->router->getMiddleware();
 
         // Interate through sites list.
-        foreach ($this->app['config']->get('multisite.sites') as $site => $domain) {
+        foreach ($this->app['config']->get('multisite.sites', []) as $site => $domain) {
             $this->mapSite($site, $domain);
         }
     }
