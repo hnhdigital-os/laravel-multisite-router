@@ -260,6 +260,10 @@ class ServiceProvider extends RouteServiceProvider
 
             // Load and process each route file.
             foreach ($route_files as $file_name) {
+                if (is_dir(base_path('routes/'.$site.'/'.$file_name))) {
+                    continue;
+                }
+
                 $this->loadRouteFile($site, $file_name);
             }
 
