@@ -15,11 +15,36 @@ Implements routing configuration via a file and folder based route structure, do
 
 This package has been developed by H&H|Digital, an Australian botique developer. Visit us at [hnh.digital](http://hnh.digital).
 
+## Documentation
+
+* [Installation](#install)
+* [Configuration](#configuration)
+* [Usage](#usage)
+* [Contributing](#contributing)
+* [Credits](#credits)
+* [License](#license)
+
 ## Install
 
 Via composer:
 
 `$ composer require hnhdigital-os/laravel-multisite-router ~1.0`
+
+## Configuration
+
+The service provider will autoload from Laravel 5.5.
+
+To enable the service provider in versions prior to Laravel 5.4, edit the config/app.php:
+
+Enable the service provider by editing config/app.php:
+
+```php
+    'providers' => [
+        ...
+        HnhDigital\MultisiteRouter\ServiceProvider::class,
+        ...
+    ];
+```
 
 ## Contributing
 
