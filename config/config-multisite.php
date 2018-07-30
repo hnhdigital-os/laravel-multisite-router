@@ -21,7 +21,7 @@ return [
         'domains' => include(__DIR__.'/../allowed-domains.php'),
     ],
     'sites' => [],
-    'site' => [
+    'site'  => [
         'title'          => [],
         'logo'           => [],
         'middleware'     => [],
